@@ -1,0 +1,59 @@
+{
+  "default_mode": "magazine",
+  "max_videos_per_run": 8,
+  "youtube": {
+    "api_key_env": "YOUTUBE_API_KEY",
+    "channels": [
+      "@LatentSpacePod",
+      "@ycombinator",
+      "@a16z",
+      "@RedpointAI",
+      "@EveryInc",
+      "@DataDrivenNYC",
+      "@NoPriorsPodcast",
+      "@DwarkeshPatel"
+    ],
+    "lookback_items_per_channel": 15,
+    "videos_per_channel": 1,
+    "skip_shorts": true
+  },
+  "transcript": {
+    "provider": "supadata",
+    "api_key_env": "SUPADATA_API_KEY",
+    "native_transcripts_only": true,
+    "request_timeout_seconds": 60,
+    "max_poll_seconds": 300,
+    "poll_interval_seconds": 5
+  },
+  "llm": {
+    "provider": "openai_compatible",
+    "api_key_env": "OPENAI_API_KEY",
+    "model": "gpt-4o-mini",
+    "max_tokens": 8000,
+    "base_url": "https://api.openai.com/v1",
+    "request_timeout_seconds": 120,
+    "temperature": 0.3
+  },
+  "output": {
+    "artifacts_dir": "artifacts",
+    "archive_dir": "newsletters"
+  },
+  "content": {
+    "analysis_min_words": 1800,
+    "analysis_max_words": 2500,
+    "magazine_min_words": 3000,
+    "magazine_max_words": 5000,
+    "magazine_section_min_words": 350,
+    "magazine_section_max_words": 550,
+    "magazine_min_sections": 8,
+    "magazine_max_sections": 10,
+    "magazine_expansion_passes": 1,
+    "magazine_two_pass": true
+  },
+  "delivery": {
+    "email_enabled": false,
+    "gmail_address_env": "GMAIL_ADDRESS",
+    "gmail_app_password_env": "GMAIL_APP_PASSWORD",
+    "recipient_email_env": "GMAIL_ADDRESS"
+  }
+}

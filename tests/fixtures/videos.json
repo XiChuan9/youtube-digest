@@ -1,0 +1,18 @@
+[
+  {
+    "title": "A useful AI systems talk",
+    "video_id": "video-new",
+    "channel": "Fixture Channel",
+    "url": "https://www.youtube.com/watch?v=video-new",
+    "description": "A fixture video used by dry-run tests.",
+    "published_at": "2026-01-01T00:00:00Z"
+  },
+  {
+    "title": "Already processed talk",
+    "video_id": "video-old",
+    "channel": "Fixture Channel",
+    "url": "https://www.youtube.com/watch?v=video-old",
+    "description": "This fixture should be skipped by idempotency.",
+    "published_at": "2025-12-01T00:00:00Z"
+  }
+]

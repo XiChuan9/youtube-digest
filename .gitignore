@@ -1,5 +1,6 @@
 # Secret files - NEVER upload these!
 .env
+config.json
 
 # Personal files
 FORZARA.md
@@ -8,8 +9,10 @@ SHARE_ON_X.md
 # Generated files
 processed_videos.json
 *.epub
+artifacts/
 logs/
 newsletters/
+*.sqlite3
 
 # Python
 __pycache__/

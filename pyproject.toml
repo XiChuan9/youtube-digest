@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "youtube-digest-hermes"
+version = "0.1.0"
+description = "Turn YouTube videos into auditable EPUB digests with pluggable LLM providers and a Hermes-friendly CLI."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+  "google-api-python-client",
+  "python-dotenv",
+  "anthropic",
+  "markdown",
+  "ebooklib",
+  "requests",
+]
+
+[project.optional-dependencies]
+dashboard = ["streamlit"]
+dev = ["pytest"]
+
+[project.scripts]
+youtube-digest = "youtube_digest.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["youtube_digest*"]
