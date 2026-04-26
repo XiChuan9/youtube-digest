@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from youtube_digest.config import DigestConfig, load_config
+from youtube_digest.delivery.naming import digest_filename
 from youtube_digest.discovery.youtube import YouTubeDiscovery
 from youtube_digest.llm.anthropic_writer import AnthropicArticleWriter
 from youtube_digest.models import Article, DigestResult, Transcript, Video
@@ -208,7 +209,7 @@ def run_digest(
 
         from youtube_digest.ebook.epub_builder import create_epub
 
-        epub_path = job_dir / f"youtube_digest_{job_id}.epub"
+        epub_path = job_dir / digest_filename("youtube-digest", job_id, result.articles, "epub")
         result.artifacts["epub"] = create_epub(result.articles, str(epub_path))
         from youtube_digest.delivery.archive import save_newsletter_archive
 

@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
+from youtube_digest.delivery.naming import digest_filename
 from youtube_digest.ebook.html_builder import create_newsletter_html
 from youtube_digest.models import Article
 
@@ -16,9 +17,9 @@ def save_newsletter_archive(archive_dir: str, articles: Iterable[Article], epub_
     path.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    html_name = f"newsletter_{timestamp}.html"
-    epub_name = f"newsletter_{timestamp}.epub"
-    metadata_name = f"newsletter_{timestamp}.json"
+    html_name = digest_filename("youtube-digest", timestamp, article_list, "html")
+    epub_name = digest_filename("youtube-digest", timestamp, article_list, "epub")
+    metadata_name = digest_filename("youtube-digest", timestamp, article_list, "json")
 
     html_path = path / html_name
     epub_archive_path = path / epub_name
