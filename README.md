@@ -1,126 +1,172 @@
-# YouTube to Ebook
+# YouTube Digest Hermes
 
-Transform YouTube videos from your favorite channels into beautifully formatted EPUB ebooks.
+Turn YouTube videos into auditable EPUB digests, with a stable CLI designed for
+personal automation, VPS deployment, pluggable LLM providers, and Hermes Agent
+skills.
 
-## Features
+This repository is a productized derivative of
+[zarazhangrui/youtube-to-ebook](https://github.com/zarazhangrui/youtube-to-ebook).
+The original idea remains intact: fetch videos, get transcripts, transform them
+with an LLM, and package the result as an ebook. This version adds a core Python
+package, structured artifacts, SQLite idempotency, content modes, and a
+Hermes-friendly command surface.
 
-- Fetches latest videos from YouTube channels (automatically filters out Shorts)
-- Extracts transcripts from videos
-- Uses Claude AI to transform transcripts into polished magazine-style articles
-- Generates EPUB ebooks readable on any device
-- Optional: Email delivery with ebook attachment
-- Optional: Web dashboard for easy management
+## What It Does
+
+- Fetches recent long-form videos from configured YouTube channels.
+- Gets transcripts through Supadata, defaulting to `mode=native` to avoid paid AI
+  transcription surprises.
+- Produces one of three content modes:
+  - `faithful`: cleaned reading edition that preserves substantive content.
+  - `magazine`: polished long-form article.
+  - `summary`: concise briefing.
+- Saves raw transcripts, prompts, generated Markdown, metadata, and EPUB files
+  under `artifacts/`.
+- Magazine mode saves intermediate `analysis.md`, draft, and expansion artifacts
+  so long-form outputs can be audited and improved.
+- Tracks processed videos in SQLite so scheduled runs are idempotent.
+- Supports Anthropic, Gemini, DeepSeek, OpenAI, OpenRouter, and other
+  OpenAI-compatible providers.
+- Exposes a stable CLI that can be called by cron, systemd, Hermes, or future MCP
+  adapters.
 
 ## Quick Start
 
-1. **Clone and install:**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/youtube-to-ebook.git
-   cd youtube-to-ebook
-   pip install -r requirements.txt
-   ```
-
-2. **Set up API keys:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your keys
-   ```
-
-3. **Add your channels:**
-   ```bash
-   # Edit channels.txt with YouTube channel handles
-   @mkbhd
-   @veritasium
-   @3blue1brown
-   ```
-
-4. **Generate your ebook:**
-   ```bash
-   python main.py
-   ```
-
-## Getting API Keys
-
-### YouTube Data API (Free)
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable "YouTube Data API v3"
-4. Create credentials → API Key
-5. Copy to `.env`
-
-### Anthropic API
-1. Go to [Anthropic Console](https://console.anthropic.com/)
-2. Create an API key
-3. Copy to `.env`
-
-## Web Dashboard
-
-Launch a friendly web interface:
 ```bash
-pip install streamlit
-python -m streamlit run dashboard.py
+git clone https://github.com/YOUR_USERNAME/youtube-digest-hermes.git
+cd youtube-digest-hermes
+python -m pip install -r requirements.txt
+cp .env.example .env
+python -m youtube_digest init
 ```
 
-## Automation (Mac)
+Edit `.env` with:
 
-Run automatically every week:
 ```bash
-# Copy the plist to LaunchAgents
-cp com.youtube.newsletter.plist ~/Library/LaunchAgents/
-
-# Load it
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.youtube.newsletter.plist
+YOUTUBE_API_KEY=...
+SUPADATA_API_KEY=...
+OPENAI_API_KEY=...
 ```
 
-## Troubleshooting
+You can use OpenRouter, DeepSeek, Gemini, local OpenAI-compatible servers, or
+Anthropic instead. See [LLM Providers](docs/llm-providers.md).
 
-### "ModuleNotFoundError" when running automation
+Generate a digest:
 
-Your Mac may have multiple Python installations. The automation scripts use `python3`, but your packages might be installed in a different Python.
-
-**Fix:** Find your Python path and update the scripts:
 ```bash
-# Find where your Python is
-which python3
-
-# Update run_newsletter.sh and dashboard.py with the full path
-# Example: /Library/Frameworks/Python.framework/Versions/3.11/bin/python3
+python -m youtube_digest generate --mode magazine
 ```
 
-## Known Issues & Solutions
+Generate from a specific video instead of configured channels:
 
-This project documents several YouTube API quirks:
+```bash
+python -m youtube_digest generate --video-url "https://www.youtube.com/watch?v=..." --mode magazine
+```
 
-| Problem | Solution |
-|---------|----------|
-| Shorts not filtered by duration | Check `/shorts/` URL pattern |
-| Search API not chronological | Use uploads playlist instead |
-| Transcript API syntax changed | Use instance method `ytt_api.fetch()` |
-| Cloud servers blocked | Run locally, not GitHub Actions |
-| Names misspelled in transcripts | Include video description in Claude context |
-| Articles truncated mid-sentence | Increase `max_tokens` in write_articles.py |
+Preview which videos would be processed without calling transcript or LLM APIs:
 
-See [SKILL.md](SKILL.md) for detailed explanations.
+```bash
+python -m youtube_digest generate --dry-run
+```
+
+Manage channels:
+
+```bash
+python -m youtube_digest channels list
+python -m youtube_digest channels add @3blue1brown
+python -m youtube_digest channels remove @a16z
+```
+
+## CLI Contract
+
+Hermes and other agents should treat the CLI as the stable integration boundary.
+
+```bash
+youtube-digest generate --mode faithful --json
+youtube-digest generate --mode magazine --limit 3 --send-email
+youtube-digest generate --video-url "https://www.youtube.com/watch?v=..." --mode magazine --json
+youtube-digest channels add @ycombinator
+```
+
+`--json` returns a machine-readable result with job status, selected videos,
+artifact paths, generated article metadata, and errors. It omits full article
+Markdown by default because the content is saved in artifacts; add
+`--include-content` when stdout should contain the full article text.
+
+## Cost Controls
+
+The default configuration is intentionally conservative:
+
+- Supadata uses `mode=native`, which only fetches existing transcripts.
+- AI-generated transcription is disabled unless you set
+  `transcript.native_transcripts_only` to `false`.
+- `max_videos_per_run` limits paid LLM calls.
+- `--dry-run` checks selection logic before spending transcript or LLM credits.
+
+See [Cost Control](docs/cost-control.md).
+
+## Hermes Skill
+
+A first-pass Hermes skill lives in
+[skills/hermes-youtube-digest/SKILL.md](skills/hermes-youtube-digest/SKILL.md).
+It calls the CLI instead of importing internal Python modules. That keeps Hermes
+integration thin, inspectable, and easy to replace with MCP later.
+
+See [Hermes Integration](docs/hermes-skill.md).
+
+## Dashboard
+
+The CLI is the stable product surface. `dashboard.py` is kept as an experimental
+Streamlit interface for local exploration, but it should not be used to judge the
+production readiness of the project.
+
+## VPS Deployment
+
+Docker and systemd templates are included:
+
+```bash
+docker compose -f deploy/docker-compose.yml run --rm youtube-digest
+```
+
+See [VPS Deployment](docs/deployment-vps.md).
+
+## CI and Smoke Tests
+
+Default CI runs syntax checks, unit tests, CLI help, and legacy wrapper import
+checks. Real API smoke tests are manual and optional:
+
+```bash
+python scripts/smoke_test.py --stage discovery
+python scripts/smoke_test.py --stage transcript --video-url "https://www.youtube.com/watch?v=..."
+python scripts/smoke_test.py --stage full --video-url "https://www.youtube.com/watch?v=..."
+```
 
 ## Project Structure
 
+```text
+youtube_digest/
+  cli.py                  # Stable CLI boundary
+  pipeline.py             # End-to-end orchestration
+  config.py               # JSON + environment config
+  discovery/youtube.py    # YouTube Data API
+  transcripts/supadata.py # Transcript provider
+  llm/anthropic_writer.py # Article generation
+  ebook/epub_builder.py   # EPUB output
+  storage/                # SQLite + artifact storage
+skills/hermes-youtube-digest/
+dashboard.py              # Experimental Streamlit UI
+docs/
+tests/
 ```
-├── main.py              # Run the full pipeline
-├── get_videos.py        # Fetch videos from YouTube
-├── get_transcripts.py   # Extract video transcripts
-├── write_articles.py    # Transform to articles with Claude
-├── send_email.py        # Create EPUB & send email
-├── dashboard.py         # Streamlit web dashboard
-├── video_tracker.py     # Track processed videos
-├── channels.txt         # Your channel list
-├── .env                 # Your API keys (not committed)
-└── newsletters/         # Archive of generated ebooks
+
+## Development
+
+Run syntax checks and tests:
+
+```bash
+scripts/quality.sh
 ```
 
 ## License
 
-MIT - Use freely, modify as needed.
-
----
-
-Built with Claude AI
+MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for source attribution.

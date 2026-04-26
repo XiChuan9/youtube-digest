@@ -1,0 +1,14 @@
+services:
+  youtube-digest:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: youtube-digest-hermes:local
+    env_file:
+      - ../.env
+    working_dir: /data
+    volumes:
+      - ../config.json:/data/config.json:ro
+      - ../artifacts:/data/artifacts
+      - ../newsletters:/data/newsletters
+    command: ["--config", "/data/config.json", "generate", "--json"]

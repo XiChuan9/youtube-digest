@@ -1,0 +1,48 @@
+name: Optional Smoke Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Smoke stage: discovery, transcript, or full"
+        required: true
+        default: "discovery"
+        type: choice
+        options:
+          - discovery
+          - transcript
+          - full
+      video_url:
+        description: "Video URL for transcript/full smoke tests"
+        required: false
+        default: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Run smoke test
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          SUPADATA_API_KEY: ${{ secrets.SUPADATA_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python scripts/smoke_test.py --stage "${{ inputs.stage }}" --video-url "${{ inputs.video_url }}"

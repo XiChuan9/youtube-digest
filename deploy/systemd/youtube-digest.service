@@ -1,0 +1,12 @@
+[Unit]
+Description=Generate YouTube Digest EPUB
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/youtube-digest-hermes
+EnvironmentFile=/opt/youtube-digest-hermes/.env
+ExecStart=/opt/youtube-digest-hermes/.venv/bin/youtube-digest --config /opt/youtube-digest-hermes/config.json generate --json
+StandardOutput=append:/opt/youtube-digest-hermes/logs/youtube-digest.log
+StandardError=append:/opt/youtube-digest-hermes/logs/youtube-digest-error.log

@@ -1,0 +1,12 @@
+.git
+.github
+.env
+config.json
+artifacts
+logs
+newsletters
+*.epub
+*.sqlite3
+__pycache__
+*.pyc
+.DS_Store
