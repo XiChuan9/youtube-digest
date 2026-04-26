@@ -7,6 +7,7 @@ servers, and many hosted providers that implement `/chat/completions`.
 from typing import Any, Dict
 
 from youtube_digest.config import DigestConfig, require_env
+from youtube_digest.errors import DigestError
 from youtube_digest.llm.base import ArticleWriter
 
 
@@ -21,6 +22,7 @@ class OpenAICompatibleArticleWriter(ArticleWriter):
         max_tokens: int = 8000,
         request_timeout_seconds: int = 120,
         temperature: float = 0.3,
+        provider_name: str = "openai_compatible",
     ):
         self.api_key = api_key
         self.model = model
@@ -28,6 +30,7 @@ class OpenAICompatibleArticleWriter(ArticleWriter):
         self.max_tokens = max_tokens
         self.request_timeout_seconds = request_timeout_seconds
         self.temperature = temperature
+        self.provider_name = provider_name
 
     @classmethod
     def from_config(cls, config: DigestConfig) -> "OpenAICompatibleArticleWriter":
@@ -44,6 +47,7 @@ class OpenAICompatibleArticleWriter(ArticleWriter):
             max_tokens=config.llm.max_tokens,
             request_timeout_seconds=config.llm.request_timeout_seconds,
             temperature=config.llm.temperature,
+            provider_name=config.llm.provider,
         )
 
     @property
@@ -69,7 +73,12 @@ class OpenAICompatibleArticleWriter(ArticleWriter):
             timeout=self.request_timeout_seconds,
         )
         if response.status_code >= 400:
-            raise RuntimeError(f"LLM API error {response.status_code}: {response.text[:500]}")
+            raise DigestError(
+                f"LLM API error {response.status_code}: {response.text[:500]}",
+                code="llm_provider_error",
+                retryable=response.status_code in {408, 409, 429, 500, 502, 503, 504},
+                provider=self.provider_name,
+            )
 
         data = response.json()
         choices = data.get("choices") or []

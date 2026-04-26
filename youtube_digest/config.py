@@ -7,6 +7,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from youtube_digest.errors import MissingApiKeyError
+
 
 DEFAULT_CHANNELS = [
     "@LatentSpacePod",
@@ -189,7 +191,7 @@ def resolve_env(name: str) -> Optional[str]:
 def require_env(name: str, label: str) -> str:
     value = resolve_env(name)
     if not value or value.startswith("your_"):
-        raise RuntimeError(f"{label} is not configured. Set {name} in .env or the environment.")
+        raise MissingApiKeyError(label, name)
     return value
 
 

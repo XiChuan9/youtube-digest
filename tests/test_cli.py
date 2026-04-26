@@ -12,11 +12,20 @@ from youtube_digest.config import load_config
 class CliTests(unittest.TestCase):
     def test_generate_accepts_video_url(self):
         args = build_parser().parse_args(
-            ["generate", "--video-url", "https://www.youtube.com/watch?v=abc123", "--dry-run"]
+            [
+                "generate",
+                "--video-url",
+                "https://www.youtube.com/watch?v=abc123",
+                "--dry-run",
+                "--reuse-transcript",
+                "--reuse-analysis",
+            ]
         )
 
         self.assertEqual(args.video_url, "https://www.youtube.com/watch?v=abc123")
         self.assertTrue(args.dry_run)
+        self.assertTrue(args.reuse_transcript)
+        self.assertTrue(args.reuse_analysis)
 
     def test_channels_add_and_remove(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -45,6 +54,8 @@ class CliTests(unittest.TestCase):
             data = json.loads(stdout.getvalue())
             self.assertEqual(data["status"], "failed")
             self.assertIn("Invalid JSON", data["errors"][0])
+            self.assertEqual(data["error_details"][0]["code"], "config_error")
+            self.assertEqual(data["error_details"][0]["stage"], "config")
 
 
 if __name__ == "__main__":

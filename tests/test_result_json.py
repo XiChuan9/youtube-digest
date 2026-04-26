@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from youtube_digest.models import Article, DigestResult
+from youtube_digest.models import Article, DigestResult, ErrorDetail
 from youtube_digest.pipeline import result_to_json
 
 
@@ -51,6 +51,41 @@ class ResultJsonTests(unittest.TestCase):
         data = json.loads(result_to_json(result, include_article_markdown=True))
 
         self.assertEqual(data["articles"][0]["markdown"], "# Full Article")
+
+    def test_json_output_keeps_string_errors_and_adds_error_details(self):
+        result = DigestResult(
+            job_id="job",
+            mode="magazine",
+            status="failed",
+            videos_found=1,
+            videos_selected=1,
+            errors=["vid: Supadata rate limit exceeded"],
+            error_details=[
+                ErrorDetail(
+                    code="supadata_rate_limit",
+                    message="Supadata rate limit exceeded",
+                    stage="transcript",
+                    video_id="vid",
+                    retryable=True,
+                    provider="supadata",
+                )
+            ],
+        )
+
+        data = json.loads(result_to_json(result))
+
+        self.assertEqual(data["errors"], ["vid: Supadata rate limit exceeded"])
+        self.assertEqual(
+            data["error_details"][0],
+            {
+                "code": "supadata_rate_limit",
+                "message": "Supadata rate limit exceeded",
+                "stage": "transcript",
+                "video_id": "vid",
+                "retryable": True,
+                "provider": "supadata",
+            },
+        )
 
 
 if __name__ == "__main__":
