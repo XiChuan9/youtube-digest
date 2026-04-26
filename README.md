@@ -33,7 +33,7 @@ stable command surface for automation and agents.
 ## Quick Start
 
 ```bash
-git clone https://github.com/XiChuan/youtube-digest.git
+git clone https://github.com/XiChuan9/youtube-digest.git
 cd youtube-digest
 python -m pip install -r requirements.txt
 cp .env.example .env
