@@ -7,6 +7,10 @@ YYYY-MM-DD.
 
 ## [Unreleased]
 
+- No unreleased changes.
+
+## [0.1.0] - 2026-04-26
+
 - Added a productized `youtube_digest` Python package and `youtube-digest` CLI.
 - Added auditable artifact storage for transcripts, prompts, analysis, article
   drafts, final Markdown, EPUBs, HTML archives, and manifests.
@@ -23,8 +27,3 @@ YYYY-MM-DD.
 - Improved config parsing errors with line, column, and strict JSON guidance.
 - Removed legacy launchd plist, shell runner, root skill, and JSON tracker files
   from the main project surface.
-
-## [0.1.0] - 2026-04-25
-
-- Initial release-preparation baseline derived from
-  `zarazhangrui/youtube-to-ebook`.
