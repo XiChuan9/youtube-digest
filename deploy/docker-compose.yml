@@ -3,7 +3,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    image: youtube-digest-hermes:local
+    image: youtube-digest:local
     env_file:
       - ../.env
     working_dir: /data

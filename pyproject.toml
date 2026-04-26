@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "youtube-digest-hermes"
+name = "youtube-digest"
 version = "0.1.0"
-description = "Turn YouTube videos into auditable EPUB digests with pluggable LLM providers and a Hermes-friendly CLI."
+description = "Turn YouTube videos into auditable EPUB digests with pluggable LLM providers and an agent-friendly CLI."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }

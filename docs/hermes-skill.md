@@ -43,7 +43,7 @@ directory to `~/.hermes/config.yaml`:
 ```yaml
 skills:
   external_dirs:
-    - /opt/youtube-digest-hermes/skills
+    - /opt/youtube-digest/skills
 ```
 
 Hermes documents `~/.hermes/skills/` as the primary skill directory and supports

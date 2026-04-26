@@ -3,7 +3,7 @@
 Example layout:
 
 ```text
-/opt/youtube-digest-hermes/
+/opt/youtube-digest/
   .venv/
   .env
   config.json
@@ -15,7 +15,7 @@ Example layout:
 Install:
 
 ```bash
-cd /opt/youtube-digest-hermes
+cd /opt/youtube-digest
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install -e .

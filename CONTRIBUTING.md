@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping make YouTube Digest Hermes sturdier.
+Thanks for helping make YouTube Digest sturdier.
 
 ## Development Setup
 

@@ -44,7 +44,7 @@ docker compose -f deploy/docker-compose.yml run --rm youtube-digest
 Schedule with host cron:
 
 ```cron
-0 7 * * 3 cd /opt/youtube-digest-hermes && docker compose -f deploy/docker-compose.yml run --rm youtube-digest
+0 7 * * 3 cd /opt/youtube-digest && docker compose -f deploy/docker-compose.yml run --rm youtube-digest
 ```
 
 ## systemd

@@ -5,8 +5,8 @@ After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/youtube-digest-hermes
-EnvironmentFile=/opt/youtube-digest-hermes/.env
-ExecStart=/opt/youtube-digest-hermes/.venv/bin/youtube-digest --config /opt/youtube-digest-hermes/config.json generate --json
-StandardOutput=append:/opt/youtube-digest-hermes/logs/youtube-digest.log
-StandardError=append:/opt/youtube-digest-hermes/logs/youtube-digest-error.log
+WorkingDirectory=/opt/youtube-digest
+EnvironmentFile=/opt/youtube-digest/.env
+ExecStart=/opt/youtube-digest/.venv/bin/youtube-digest --config /opt/youtube-digest/config.json generate --json
+StandardOutput=append:/opt/youtube-digest/logs/youtube-digest.log
+StandardError=append:/opt/youtube-digest/logs/youtube-digest-error.log

@@ -1,15 +1,15 @@
-# YouTube Digest Hermes
+# YouTube Digest
 
 Turn YouTube videos into auditable EPUB digests, with a stable CLI designed for
-personal automation, VPS deployment, pluggable LLM providers, and Hermes Agent
-skills.
+personal automation, VPS deployment, pluggable LLM providers, and agent
+integrations.
 
 This repository is a productized derivative of
 [zarazhangrui/youtube-to-ebook](https://github.com/zarazhangrui/youtube-to-ebook).
 The original idea remains intact: fetch videos, get transcripts, transform them
 with an LLM, and package the result as an ebook. This version adds a core Python
 package, structured artifacts, SQLite idempotency, content modes, and a
-Hermes-friendly command surface.
+stable command surface for automation and agents.
 
 ## What It Does
 
@@ -33,8 +33,8 @@ Hermes-friendly command surface.
 ## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/youtube-digest-hermes.git
-cd youtube-digest-hermes
+git clone https://github.com/XiChuan/youtube-digest.git
+cd youtube-digest
 python -m pip install -r requirements.txt
 cp .env.example .env
 python -m youtube_digest init
