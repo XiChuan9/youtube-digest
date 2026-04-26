@@ -1,26 +1,25 @@
 """
-YouTube Newsletter Dashboard
-A beautiful web interface to manage your newsletter.
+YouTube Digest Dashboard
+An experimental web interface to manage local digest runs.
 """
 
 import streamlit as st
-import os
 import json
 import subprocess
 import re
+import sqlite3
+import sys
 from datetime import datetime
 from pathlib import Path
 
+from youtube_digest.config import load_config, save_config
+
 # Paths
 PROJECT_DIR = Path(__file__).parent
-CHANNELS_FILE = PROJECT_DIR / "get_videos.py"
-PROMPT_FILE = PROJECT_DIR / "write_articles.py"
-TRACKER_FILE = PROJECT_DIR / "processed_videos.json"
-NEWSLETTERS_DIR = PROJECT_DIR / "newsletters"
-PLIST_FILE = Path.home() / "Library/LaunchAgents/com.youtube.newsletter.plist"
+CONFIG_FILE = PROJECT_DIR / "config.json"
 
-# Create newsletters directory if it doesn't exist
-NEWSLETTERS_DIR.mkdir(exist_ok=True)
+# Create archive directory if it doesn't exist
+(PROJECT_DIR / "newsletters").mkdir(exist_ok=True)
 
 st.set_page_config(
     page_title="The Digest",
@@ -420,38 +419,15 @@ st.markdown("""
 # ============================================
 
 def get_channels():
-    """Extract channel handles from the Python file."""
-    with open(CHANNELS_FILE) as f:
-        content = f.read()
-
-    match = re.search(r'CHANNELS\s*=\s*\[(.*?)\]', content, re.DOTALL)
-    if not match:
-        return []
-
-    channels_block = match.group(1)
-    handles = re.findall(r'["\'](@[\w]+)["\']', channels_block)
-    return handles
+    """Read channel handles from config."""
+    return load_config(str(CONFIG_FILE)).youtube.channels
 
 
 def save_channels(channels):
-    """Save channels back to the Python file."""
-    with open(CHANNELS_FILE) as f:
-        content = f.read()
-
-    channels_str = "CHANNELS = [\n"
-    for ch in channels:
-        channels_str += f'    "{ch}",\n'
-    channels_str += "]"
-
-    content = re.sub(
-        r'CHANNELS\s*=\s*\[.*?\]',
-        channels_str,
-        content,
-        flags=re.DOTALL
-    )
-
-    with open(CHANNELS_FILE, "w") as f:
-        f.write(content)
+    """Save channels back to config."""
+    config = load_config(str(CONFIG_FILE))
+    config.youtube.channels = channels
+    save_config(config, str(CONFIG_FILE))
 
 
 def extract_handle_from_url(url_or_handle):
@@ -482,65 +458,44 @@ def extract_handle_from_url(url_or_handle):
     return None
 
 
-def get_schedule():
-    """Read current schedule from plist."""
-    if PLIST_FILE.exists():
-        with open(PLIST_FILE) as f:
-            content = f.read()
-
-        weekday = 3
-        hour = 7
-
-        weekday_match = re.search(r'<key>Weekday</key>\s*<integer>(\d+)</integer>', content)
-        if weekday_match:
-            weekday = int(weekday_match.group(1))
-
-        hour_match = re.search(r'<key>Hour</key>\s*<integer>(\d+)</integer>', content)
-        if hour_match:
-            hour = int(hour_match.group(1))
-
-        return weekday, hour
-    return 3, 7
-
-
-def save_schedule(weekday, hour):
-    """Save schedule to plist and reload."""
-    if PLIST_FILE.exists():
-        with open(PLIST_FILE) as f:
-            content = f.read()
-
-        content = re.sub(
-            r'(<key>Weekday</key>\s*<integer>)\d+(</integer>)',
-            f'\\g<1>{weekday}\\2',
-            content
-        )
-        content = re.sub(
-            r'(<key>Hour</key>\s*<integer>)\d+(</integer>)',
-            f'\\g<1>{hour}\\2',
-            content
-        )
-
-        with open(PLIST_FILE, "w") as f:
-            f.write(content)
-
-        subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}", str(PLIST_FILE)],
-                      capture_output=True)
-        subprocess.run(["launchctl", "bootstrap", f"gui/{os.getuid()}", str(PLIST_FILE)],
-                      capture_output=True)
-        return True
-    return False
-
-
 def get_newsletters():
     """Get list of saved newsletters."""
     newsletters = []
-    if NEWSLETTERS_DIR.exists():
-        for json_file in sorted(NEWSLETTERS_DIR.glob("newsletter_*.json"), reverse=True):
+    config = load_config(str(CONFIG_FILE))
+    newsletters_dir = PROJECT_DIR / config.output.archive_dir
+    if newsletters_dir.exists():
+        for json_file in sorted(newsletters_dir.glob("newsletter_*.json"), reverse=True):
             with open(json_file) as f:
                 data = json.load(f)
                 data["json_path"] = str(json_file)
                 newsletters.append(data)
     return newsletters
+
+
+def get_processed_videos():
+    """Read processed videos from the SQLite store."""
+    config = load_config(str(CONFIG_FILE))
+    db_path = PROJECT_DIR / config.output.artifacts_dir / "digest.sqlite3"
+    if db_path.exists():
+        with sqlite3.connect(str(db_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT video_id, title, channel, url, processed_at
+                FROM processed_videos
+                ORDER BY processed_at DESC
+                """
+            ).fetchall()
+        return {
+            video_id: {
+                "title": title,
+                "channel": channel,
+                "url": url,
+                "processed_at": processed_at,
+            }
+            for video_id, title, channel, url, processed_at in rows
+        }
+
+    return {}
 
 
 # ============================================
@@ -559,9 +514,10 @@ with st.sidebar:
 
     page = st.radio(
         "NAVIGATION",
-        ["Generate", "Channels", "Writing Style", "Archive", "Schedule"],
+        ["Generate", "Channels", "Writing Style", "Archive"],
         label_visibility="visible"
     )
+    st.caption("Experimental dashboard. The CLI is the stable interface.")
 
 # ============================================
 # PAGE: Generate Newsletter
@@ -570,7 +526,7 @@ if page == "Generate":
     st.markdown("""
     <div class="masthead">
         <h1>THE DIGEST</h1>
-        <div class="tagline">Your personal YouTube newsletter, crafted by AI</div>
+        <div class="tagline">Your personal YouTube digest, crafted by AI</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -580,22 +536,27 @@ if page == "Generate":
     col_left, col_center, col_right = st.columns([1, 2, 1])
 
     with col_center:
-        if st.button("Generate & Send Newsletter", type="primary", use_container_width=True):
-            with st.spinner("Crafting your newsletter..."):
+        if st.button("Generate Digest", type="primary", use_container_width=True):
+            with st.spinner("Crafting your digest..."):
                 try:
-                    # Note: If this fails with ModuleNotFoundError, replace "python3" with your full Python path
-                    # Find it by running: which python3
                     result = subprocess.run(
-                        ["python3", str(PROJECT_DIR / "main.py")],
+                        [
+                            sys.executable,
+                            "-m",
+                            "youtube_digest",
+                            "--config",
+                            str(CONFIG_FILE),
+                            "generate",
+                        ],
                         capture_output=True,
                         text=True,
                         cwd=str(PROJECT_DIR),
                         timeout=600
                     )
 
-                    if "Newsletter sent successfully" in result.stdout:
-                        st.success("Newsletter sent! Check your inbox.")
-                    elif "No new videos" in result.stdout:
+                    if "Status: succeeded" in result.stdout:
+                        st.success("Digest generated. Check the archive.")
+                    elif "Status: no_new_videos" in result.stdout:
                         st.info("No new videos to process. All caught up!")
                     else:
                         st.warning("Completed with notes. See log below.")
@@ -608,7 +569,7 @@ if page == "Generate":
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        st.caption("Fetches new videos, writes articles with AI, and sends to your inbox")
+        st.caption("Fetches new videos, writes articles with AI, and saves EPUB artifacts")
 
     # Stats at the bottom
     st.markdown("<br><br>", unsafe_allow_html=True)
@@ -616,16 +577,10 @@ if page == "Generate":
 
     col1, col2, col3 = st.columns(3)
 
-    if TRACKER_FILE.exists():
-        with open(TRACKER_FILE) as f:
-            data = json.load(f)
-        video_count = len(data.get("videos", {}))
-    else:
-        video_count = 0
+    video_count = len(get_processed_videos())
 
-    channels = get_channels()
-    weekday, hour = get_schedule()
-    days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    config = load_config(str(CONFIG_FILE))
+    channels = config.youtube.channels
 
     with col1:
         st.metric("Articles Sent", video_count)
@@ -634,7 +589,7 @@ if page == "Generate":
         st.metric("Channels", len(channels))
 
     with col3:
-        st.metric("Next Run", f"{days[weekday]} {hour}:00")
+        st.metric("Default Mode", config.default_mode)
 
 # ============================================
 # PAGE: Channels
@@ -721,28 +676,34 @@ elif page == "Channels":
 # ============================================
 elif page == "Writing Style":
     st.markdown("## Writing Style")
-    st.write("Customize how Claude AI writes your articles.")
+    st.write("Choose the default transformation mode for future digest runs.")
 
-    with open(PROMPT_FILE) as f:
-        content = f.read()
+    config = load_config(str(CONFIG_FILE))
+    mode_labels = {
+        "faithful": "Faithful - cleaned reading edition",
+        "magazine": "Magazine - polished long-form article",
+        "summary": "Summary - concise briefing",
+    }
+    modes = list(mode_labels.keys())
 
-    match = re.search(r'prompt = f"""(.+?)"""', content, re.DOTALL)
+    selected_mode = st.selectbox(
+        "Default mode",
+        options=modes,
+        format_func=lambda value: mode_labels[value],
+        index=modes.index(config.default_mode) if config.default_mode in modes else 1,
+    )
 
-    if match:
-        current_prompt = match.group(1)
+    max_videos = st.selectbox(
+        "Maximum videos per run",
+        options=list(range(1, 21)),
+        index=max(0, min(config.max_videos_per_run, 20) - 1),
+    )
 
-        new_prompt = st.text_area(
-            "Article prompt",
-            value=current_prompt,
-            height=450,
-            label_visibility="collapsed"
-        )
-
-        if st.button("Save Changes", type="primary"):
-            new_content = content[:match.start(1)] + new_prompt + content[match.end(1):]
-            with open(PROMPT_FILE, "w") as f:
-                f.write(new_content)
-            st.success("Writing style saved!")
+    if st.button("Save Changes", type="primary"):
+        config.default_mode = selected_mode
+        config.max_videos_per_run = max_videos
+        save_config(config, str(CONFIG_FILE))
+        st.success("Writing style saved!")
 
 # ============================================
 # PAGE: Archive
@@ -750,14 +711,14 @@ elif page == "Writing Style":
 elif page == "Archive":
     st.markdown("## Archive")
 
-    # Tabs for newsletters vs individual videos
+    # Tabs for generated archives vs individual videos
     tab1, tab2 = st.tabs(["Newsletters", "Processed Videos"])
 
     with tab1:
         newsletters = get_newsletters()
 
         if newsletters:
-            st.markdown(f"**{len(newsletters)} newsletters sent**")
+            st.markdown(f"**{len(newsletters)} digests generated**")
 
             for nl in newsletters:
                 st.markdown(f"""
@@ -771,7 +732,7 @@ elif page == "Archive":
 
                 col1, col2 = st.columns(2)
                 with col1:
-                    html_file = NEWSLETTERS_DIR / nl.get('html_file', '')
+                    html_file = Path(nl.get("json_path", "")).parent / nl.get('html_file', '')
                     if html_file.exists():
                         with open(html_file) as f:
                             html_content = f.read()
@@ -783,7 +744,7 @@ elif page == "Archive":
                             key=f"html_{nl.get('timestamp')}"
                         )
                 with col2:
-                    epub_file = NEWSLETTERS_DIR / nl.get('epub_file', '')
+                    epub_file = Path(nl.get("json_path", "")).parent / nl.get('epub_file', '')
                     if epub_file.exists():
                         with open(epub_file, "rb") as f:
                             epub_content = f.read()
@@ -800,91 +761,42 @@ elif page == "Archive":
             st.info("No newsletters yet. Generate your first one from the Generate tab!")
 
     with tab2:
-        if TRACKER_FILE.exists():
-            with open(TRACKER_FILE) as f:
-                data = json.load(f)
+        videos = get_processed_videos()
 
-            videos = data.get("videos", {})
+        if videos:
+            sorted_videos = sorted(
+                videos.items(),
+                key=lambda x: x[1].get("processed_at", ""),
+                reverse=True
+            )
 
-            if videos:
-                sorted_videos = sorted(
-                    videos.items(),
-                    key=lambda x: x[1].get("processed_at", ""),
-                    reverse=True
-                )
+            st.markdown(f"**{len(videos)} videos processed**")
 
-                st.markdown(f"**{len(videos)} videos processed**")
+            for video_id, info in sorted_videos:
+                with st.expander(f"{info.get('channel', 'Unknown')} — {info.get('title', 'Unknown')[:50]}..."):
+                    st.write(f"**{info.get('title', 'Unknown')}**")
+                    st.caption(f"From {info.get('channel', 'Unknown')}")
 
-                for video_id, info in sorted_videos:
-                    with st.expander(f"{info.get('channel', 'Unknown')} — {info.get('title', 'Unknown')[:50]}..."):
-                        st.write(f"**{info.get('title', 'Unknown')}**")
-                        st.caption(f"From {info.get('channel', 'Unknown')}")
+                    processed = info.get('processed_at', 'Unknown')
+                    if processed != 'Unknown':
+                        try:
+                            dt = datetime.fromisoformat(processed)
+                            processed = dt.strftime("%B %d, %Y at %I:%M %p")
+                        except:
+                            pass
+                    st.caption(f"Processed: {processed}")
 
-                        processed = info.get('processed_at', 'Unknown')
-                        if processed != 'Unknown':
-                            try:
-                                dt = datetime.fromisoformat(processed)
-                                processed = dt.strftime("%B %d, %Y at %I:%M %p")
-                            except:
-                                pass
-                        st.caption(f"Processed: {processed}")
+                    st.markdown(f"[Watch on YouTube]({info.get('url', f'https://www.youtube.com/watch?v={video_id}')})")
 
-                        st.markdown(f"[Watch on YouTube](https://www.youtube.com/watch?v={video_id})")
+            st.divider()
 
-                st.divider()
-
-                if st.button("Clear All History", type="secondary"):
-                    st.warning("This will allow all videos to be re-processed.")
-            else:
-                st.info("No videos processed yet.")
+            if st.button("Clear All History", type="secondary"):
+                st.warning("This will allow all videos to be re-processed.")
         else:
             st.info("No videos processed yet.")
-
-# ============================================
-# PAGE: Schedule
-# ============================================
-elif page == "Schedule":
-    st.markdown("## Schedule")
-    st.write("Set when your newsletter runs automatically.")
-
-    weekday, hour = get_schedule()
-    days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        new_day = st.selectbox(
-            "Day",
-            options=list(range(7)),
-            format_func=lambda x: days[x],
-            index=weekday
-        )
-
-    with col2:
-        new_hour = st.selectbox(
-            "Time",
-            options=list(range(24)),
-            format_func=lambda x: f"{x:02d}:00" + (" AM" if x < 12 else " PM"),
-            index=hour
-        )
-
-    st.markdown(f"**Currently scheduled:** {days[weekday]} at {hour:02d}:00")
-
-    if new_day != weekday or new_hour != hour:
-        st.markdown(f"**New schedule:** {days[new_day]} at {new_hour:02d}:00")
-
-        if st.button("Update Schedule", type="primary"):
-            if save_schedule(new_day, new_hour):
-                st.success(f"Updated to {days[new_day]} at {new_hour:02d}:00!")
-            else:
-                st.error("Couldn't update schedule")
-
-    st.divider()
-
-    st.caption("Your Mac must be awake at the scheduled time for the newsletter to run automatically.")
 
 # ============================================
 # Footer
 # ============================================
 st.markdown("---")
-st.caption("The Digest • Powered by Claude AI")
+st.caption("The Digest • Experimental dashboard for the youtube-digest CLI")
