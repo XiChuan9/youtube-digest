@@ -16,6 +16,10 @@ YYYY-MM-DD.
 - Added SQLite-backed processed-video tracking and job state.
 - Added Docker, systemd, CI, smoke-test, and Hermes skill scaffolding.
 - Added `generate --video-url` for explicit single-video runs.
+- Added structured `error_details` alongside legacy string `errors` in JSON
+  output.
+- Added explicit `--reuse-transcript` and `--reuse-analysis` artifact reuse for
+  cost-controlled reruns.
 - Improved config parsing errors with line, column, and strict JSON guidance.
 - Removed legacy launchd plist, shell runner, root skill, and JSON tracker files
   from the main project surface.

@@ -85,13 +85,15 @@ Hermes and other agents should treat the CLI as the stable integration boundary.
 youtube-digest generate --mode faithful --json
 youtube-digest generate --mode magazine --limit 3 --send-email
 youtube-digest generate --video-url "https://www.youtube.com/watch?v=..." --mode magazine --json
+youtube-digest generate --video-url "https://www.youtube.com/watch?v=..." --mode magazine --reuse-transcript --reuse-analysis --json
 youtube-digest channels add @ycombinator
 ```
 
 `--json` returns a machine-readable result with job status, selected videos,
-artifact paths, generated article metadata, and errors. It omits full article
-Markdown by default because the content is saved in artifacts; add
-`--include-content` when stdout should contain the full article text.
+artifact paths, generated article metadata, string `errors`, and structured
+`error_details`. It omits full article Markdown by default because the content
+is saved in artifacts; add `--include-content` when stdout should contain the
+full article text.
 
 ## Cost Controls
 
@@ -102,6 +104,8 @@ The default configuration is intentionally conservative:
   `transcript.native_transcripts_only` to `false`.
 - `max_videos_per_run` limits paid LLM calls.
 - `--dry-run` checks selection logic before spending transcript or LLM credits.
+- `--reuse-transcript` and `--reuse-analysis` explicitly copy the latest matching
+  artifact for the same video into the current job and skip those paid steps.
 
 See [Cost Control](docs/cost-control.md).
 

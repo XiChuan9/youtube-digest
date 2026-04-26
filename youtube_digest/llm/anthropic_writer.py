@@ -1,6 +1,7 @@
 """Anthropic article writer."""
 
 from youtube_digest.config import DigestConfig, require_env
+from youtube_digest.errors import DigestError
 from youtube_digest.llm.base import ArticleWriter
 
 
@@ -28,9 +29,17 @@ class AnthropicArticleWriter(ArticleWriter):
         )
 
     def write(self, prompt: str) -> str:
-        message = self.client.messages.create(
-            model=self.model,
-            max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        try:
+            message = self.client.messages.create(
+                model=self.model,
+                max_tokens=self.max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except Exception as exc:
+            raise DigestError(
+                f"Anthropic API error: {exc}",
+                code="llm_provider_error",
+                retryable=True,
+                provider="anthropic",
+            ) from exc
         return message.content[0].text

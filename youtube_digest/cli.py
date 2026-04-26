@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from youtube_digest.config import DigestConfig, init_config, load_config, save_config
+from youtube_digest.errors import error_detail_from_exception
 from youtube_digest.pipeline import result_to_json, run_digest
 
 
@@ -25,6 +26,8 @@ def build_parser() -> argparse.ArgumentParser:
     generate.add_argument("--dry-run", action="store_true", help="Discover and select videos without paid APIs")
     generate.add_argument("--force", action="store_true", help="Process videos even if already marked processed")
     generate.add_argument("--limit", type=int, help="Maximum videos to process in this run")
+    generate.add_argument("--reuse-transcript", action="store_true", help="Reuse the latest transcript artifact for a video")
+    generate.add_argument("--reuse-analysis", action="store_true", help="Reuse the latest analysis artifact for a video")
     generate.add_argument("--send-email", action="store_true", help="Send the generated EPUB by email")
     generate.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     generate.add_argument(
@@ -125,6 +128,8 @@ def handle_generate(args: argparse.Namespace) -> int:
         force=args.force,
         limit=args.limit,
         send_email=args.send_email,
+        reuse_transcript=args.reuse_transcript,
+        reuse_analysis=args.reuse_analysis,
         log=log,
     )
 
@@ -157,7 +162,18 @@ def main(argv: Optional[List[str]] = None) -> int:
             return handle_generate(args)
     except Exception as exc:
         if getattr(args, "json", False):
-            print(json.dumps({"status": "failed", "errors": [str(exc)]}, indent=2, ensure_ascii=False))
+            detail = error_detail_from_exception(exc, stage="config", default_code="config_error")
+            print(
+                json.dumps(
+                    {
+                        "status": "failed",
+                        "errors": [str(exc)],
+                        "error_details": [detail.to_dict()],
+                    },
+                    indent=2,
+                    ensure_ascii=False,
+                )
+            )
         else:
             print(f"Error: {exc}", file=sys.stderr)
         return 1

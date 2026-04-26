@@ -4,6 +4,7 @@ import time
 from typing import Any, Dict, Optional
 
 from youtube_digest.config import DigestConfig, require_env
+from youtube_digest.errors import DigestError
 from youtube_digest.models import Transcript, Video
 from youtube_digest.transcripts.base import TranscriptProvider
 
@@ -63,17 +64,43 @@ class SupadataTranscriptProvider(TranscriptProvider):
             if "jobId" in data:
                 data = self._poll_job(data["jobId"])
         elif response.status_code == 404:
-            raise RuntimeError("No transcript available")
+            raise DigestError(
+                "No transcript available",
+                code="no_native_transcript",
+                stage="transcript",
+                provider="supadata",
+            )
         elif response.status_code == 401:
-            raise RuntimeError("Invalid Supadata API key")
+            raise DigestError(
+                "Invalid Supadata API key",
+                code="missing_api_key",
+                stage="transcript",
+                provider="supadata",
+            )
         elif response.status_code == 429:
-            raise RuntimeError("Supadata rate limit exceeded")
+            raise DigestError(
+                "Supadata rate limit exceeded",
+                code="supadata_rate_limit",
+                stage="transcript",
+                retryable=True,
+                provider="supadata",
+            )
         else:
-            raise RuntimeError(f"Supadata API error {response.status_code}: {response.text[:200]}")
+            raise DigestError(
+                f"Supadata API error {response.status_code}: {response.text[:200]}",
+                stage="transcript",
+                retryable=response.status_code >= 500,
+                provider="supadata",
+            )
 
         text = self._extract_text(data)
         if not text:
-            raise RuntimeError("Supadata response did not include transcript content")
+            raise DigestError(
+                "Supadata response did not include transcript content",
+                code="no_native_transcript",
+                stage="transcript",
+                provider="supadata",
+            )
 
         return Transcript(
             video_id=video.video_id,
@@ -96,7 +123,12 @@ class SupadataTranscriptProvider(TranscriptProvider):
                 timeout=self.request_timeout_seconds,
             )
             if response.status_code != 200:
-                raise RuntimeError(f"Supadata job error {response.status_code}: {response.text[:200]}")
+                raise DigestError(
+                    f"Supadata job error {response.status_code}: {response.text[:200]}",
+                    stage="transcript",
+                    retryable=response.status_code >= 500,
+                    provider="supadata",
+                )
 
             data = response.json()
             status = data.get("status")
@@ -104,11 +136,20 @@ class SupadataTranscriptProvider(TranscriptProvider):
                 return data
             if status == "failed":
                 error = data.get("error") or {}
-                raise RuntimeError(f"Supadata transcript job failed: {error.get('message', error)}")
+                raise DigestError(
+                    f"Supadata transcript job failed: {error.get('message', error)}",
+                    stage="transcript",
+                    provider="supadata",
+                )
 
             time.sleep(self.poll_interval_seconds)
 
-        raise RuntimeError(f"Supadata transcript job timed out after {self.max_poll_seconds}s")
+        raise DigestError(
+            f"Supadata transcript job timed out after {self.max_poll_seconds}s",
+            stage="transcript",
+            retryable=True,
+            provider="supadata",
+        )
 
     def _extract_text(self, data: Dict[str, Any]) -> str:
         content: Optional[Any] = data.get("content")

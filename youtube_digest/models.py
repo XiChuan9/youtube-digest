@@ -55,6 +55,19 @@ class Article:
 
 
 @dataclass
+class ErrorDetail:
+    code: str
+    message: str
+    stage: str
+    video_id: Optional[str] = None
+    retryable: bool = False
+    provider: Optional[str] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class DigestResult:
     job_id: str
     mode: str
@@ -64,6 +77,7 @@ class DigestResult:
     articles: List[Article] = field(default_factory=list)
     artifacts: Dict[str, str] = field(default_factory=dict)
     errors: List[str] = field(default_factory=list)
+    error_details: List[ErrorDetail] = field(default_factory=list)
 
     def to_dict(self, include_article_markdown: bool = True) -> Dict[str, Any]:
         data = asdict(self)

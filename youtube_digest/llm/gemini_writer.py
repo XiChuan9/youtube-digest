@@ -3,6 +3,7 @@
 from typing import Any, Dict, List
 
 from youtube_digest.config import DigestConfig, require_env
+from youtube_digest.errors import DigestError
 from youtube_digest.llm.base import ArticleWriter
 
 
@@ -59,7 +60,12 @@ class GeminiArticleWriter(ArticleWriter):
             timeout=self.request_timeout_seconds,
         )
         if response.status_code >= 400:
-            raise RuntimeError(f"Gemini API error {response.status_code}: {response.text[:500]}")
+            raise DigestError(
+                f"Gemini API error {response.status_code}: {response.text[:500]}",
+                code="llm_provider_error",
+                retryable=response.status_code in {408, 409, 429, 500, 502, 503, 504},
+                provider="gemini",
+            )
 
         data = response.json()
         candidates: List[Dict[str, Any]] = data.get("candidates") or []
